@@ -1,5 +1,4 @@
-// Хорошая практика даже простые типы выносить в алиасы
-// Зато когда захотите поменять это достаточно сделать в одном месте
+// Определяем типы для переиспользования
 type EventName = string | RegExp;
 type Subscriber = Function;
 type EmitterEvent = {
@@ -10,23 +9,27 @@ type EmitterEvent = {
 export interface IEvents {
     on<T extends object>(event: EventName, callback: (data: T) => void): void;
     emit<T extends object>(event: string, data?: T): void;
+    // Создает функцию, которая при вызове отправит событие
     trigger<T extends object>(event: string, context?: Partial<T>): (data: T) => void;
 }
 
 /**
- * Брокер событий, классическая реализация
- * В расширенных вариантах есть возможность подписаться на все события
- * или слушать события по шаблону например
+ * Центр событий для обмена сообщениями между компонентами
+ * Позволяет подписываться на события и отправлять их
  */
 export class EventEmitter implements IEvents {
-    _events: Map<EventName, Set<Subscriber>>;
+    protected _events: Map<EventName, Set<Subscriber>>;
+    
+    private static Values = {
+        EMPTY_SET_SIZE: 0,
+    } as const;
 
     constructor() {
         this._events = new Map<EventName, Set<Subscriber>>();
     }
 
     /**
-     * Установить обработчик на событие
+     * Подписаться на событие
      */
     on<T extends object>(eventName: EventName, callback: (event: T) => void) {
         if (!this._events.has(eventName)) {
@@ -36,12 +39,12 @@ export class EventEmitter implements IEvents {
     }
 
     /**
-     * Снять обработчик с события
+     * Отписаться от события
      */
     off(eventName: EventName, callback: Subscriber) {
         if (this._events.has(eventName)) {
             this._events.get(eventName)!.delete(callback);
-            if (this._events.get(eventName)?.size === 0) {
+            if (this._events.get(eventName)?.size === EventEmitter.Values.EMPTY_SET_SIZE) {
                 this._events.delete(eventName);
             }
         }
@@ -77,7 +80,7 @@ export class EventEmitter implements IEvents {
     }
 
     /**
-     * Сделать коллбек триггер, генерирующий событие при вызове
+     * Создает функцию, которая при вызове отправит событие
      */
     trigger<T extends object>(eventName: string, context?: Partial<T>) {
         return (event: object = {}) => {
